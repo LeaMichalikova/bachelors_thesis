@@ -6,6 +6,7 @@ import numpy as np
 
 from tensorflow import keras
 from utils.diamond_space import diamond_coords_from_original, vp_to_heatmap, heatmap_to_orig, process_heatmap_old
+from models.hourglass import using_tiling
 
 
 class GenerateHeatmap():
@@ -47,13 +48,15 @@ class GenerateHeatmap():
 
 
 class HeatmapBoxCarsDataset(keras.utils.Sequence):
-    def __init__(self, path, split, batch_size=32, img_size=128, heatmap_size=128, scales=(0.1, 0.3, 1.0, 3, 10.0), peak_original=False, perspective_sigma=25.0, crop_delta=10):
+    def __init__(self, path, split, batch_size=32, img_size=128, heatmap_size=128, scales=(0.1, 0.3, 1.0, 3, 10.0), peak_original=False, perspective_sigma=25.0, crop_delta=10, modif_num=0):
         'Initialization'
         with open(os.path.join(path, 'dataset.pkl'), 'rb') as f:
             self.data = pickle.load(f, encoding="latin-1", fix_imports=True)
 
         with open(os.path.join(path, 'atlas.pkl'), 'rb') as f:
             self.atlas = pickle.load(f, encoding="latin-1", fix_imports=True)
+
+        self.modif_num = modif_num
 
         self.split = split
         self.img_dir = os.path.join(path, 'images')
@@ -121,7 +124,7 @@ class HeatmapBoxCarsDataset(keras.utils.Sequence):
             imgs.append(img)
             heatmaps.append(heatmap)
 
-        return np.array(imgs), [np.array(heatmaps), np.array(heatmaps)]
+        return np.array(imgs), (np.array(heatmaps), np.array(heatmaps))
 
     def on_epoch_end(self):
         if self.split == 'train':
@@ -240,6 +243,9 @@ class HeatmapBoxCarsDataset(keras.utils.Sequence):
 
         heatmaps = self.generate_heatmaps([warped_vp1, warped_vp2])
 
+        if using_tiling(self.modif_num):
+            heatmaps = tile_heatmaps(heatmaps)
+
         out_img = warped_img / 255
         out_heatmaps = heatmaps
         # out_img = transforms.ToTensor()(out_img)
@@ -248,6 +254,23 @@ class HeatmapBoxCarsDataset(keras.utils.Sequence):
 
         return out_img, out_heatmaps
 
+def tile_heatmaps(heatmaps):
+    # input channel requires 4 scales for 2 vps
+    if heatmaps.shape[-1] != 8:
+        raise ValueError("tiling heatmaps requires heatmaps with 8 channels")
+    h, w = heatmaps.shape[:2]
+    tiled = np.zeros((2*h, 2*w, 2), dtype=heatmaps.dtype)
+
+    tiled[0:h, 0:w, 0] = heatmaps[:, :, 0]
+    tiled[0:h, w:2*w, 0] = heatmaps[:, :, 1]
+    tiled[h:2*h, 0:w, 0] = heatmaps[:, :, 2]
+    tiled[h:2*h, w:2*w, 0] = heatmaps[:, :, 3]
+    tiled[0:h, 0:w, 1] = heatmaps[:, :, 4]
+    tiled[0:h, w:2*w, 1] = heatmaps[:, :, 5]
+    tiled[h:2*h, 0:w, 1] = heatmaps[:, :, 6]
+    tiled[h:2*h, w:2*w, 1] = heatmaps[:, :, 7]
+
+    return tiled
 
 def get_mean_heatmap_vp(heatmap, orig_coord_heatmap):
     vp_x_avg = np.average(orig_coord_heatmap[:, :, 0], weights=heatmap)

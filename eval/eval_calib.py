@@ -133,7 +133,10 @@ def eval_session_bcs(path, session):
         gt_data = pickle.load(f, encoding='latin-1', fix_imports=True)
     distance_measurement = gt_data["distanceMeasurement"]
 
-    results_path = os.path.join(path, 'results', session)
+    # modifying the path to match the 2026 outputs
+    results_path = os.path.join(path, 'results', '2026_outputs', session)
+    os.makedirs(results_path, exist_ok=True)
+
     systems = [system for system in os.listdir(results_path) if valid_system(system)]
 
     out = {}
@@ -157,7 +160,10 @@ def eval_session_bcp(path, session):
         gt_data = json.load(f)
     distance_measurement = gt_data
 
-    results_path = os.path.join(path, 'results', session)
+    # modifying the path to match the 2026 outputs
+    results_path = os.path.join(path, 'results', '2026_outputs', session)
+    os.makedirs(results_path, exist_ok=True)
+
     systems = [system for system in os.listdir(results_path) if valid_system(system)]
 
     out = {}
@@ -168,8 +174,8 @@ def eval_session_bcp(path, session):
             system_data = json.load(f)
 
         projector, scale = get_system_projector(system_data)
-        # rel_errors, abs_errors = eval_pure_calibration(distance_measurement, projector)
-        rel_errors, abs_errors = eval_optim_calibration(distance_measurement, projector)
+        rel_errors, abs_errors = eval_pure_calibration(distance_measurement, projector)
+        # rel_errors, abs_errors = eval_optim_calibration(distance_measurement, projector)
         rel_scale_errors, abs_scale_errors =  eval_scale_calibration(distance_measurement, projector, scale)
         out[system] = {'rel_errors': rel_errors, 'abs_errors': abs_errors, 'rel_scale_errors': rel_scale_errors, 'abs_scale_errors': abs_scale_errors}
 

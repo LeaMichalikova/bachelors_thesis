@@ -1,4 +1,7 @@
 import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import datetime
 import json
 import time
@@ -15,6 +18,7 @@ from utils.gpu import set_gpus
 def detect_session(detector, model_dir_name, data_path, session, args, scales):
     batch_vp_detector = BatchVPDetectorHeatmap(detector, args, scales)
 
+    print(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}:", end=" ")
     print("Starting object detection for ", session)
     cap = cv2.VideoCapture(os.path.join(data_path, 'dataset', session, 'video.avi'))
     # DO NOT REMOVE OTHERWISE FRAMES WILL NOT SYNC
@@ -29,7 +33,10 @@ def detect_session(detector, model_dir_name, data_path, session, args, scales):
         json_path = os.path.join(data_path, 'dataset', session, 'detections.json')
         output_json_name = 'VPout_{}_r{}.json'.format(model_dir_name, args.resume)
 
-    output_json_path = os.path.join(data_path, 'dataset', session, output_json_name)
+    # changed the path to the output files to separate current work from previous work
+    output_dir = os.path.join(data_path, 'dataset', '2026_outputs', session)
+    os.makedirs(output_dir, exist_ok=True)
+    output_json_path = os.path.join(output_dir, output_json_name)
 
     with open(json_path, 'r') as f:
         detection_data = json.load(f)
@@ -79,6 +86,7 @@ def detect_session(detector, model_dir_name, data_path, session, args, scales):
     batch_vp_detector.finalize()
     print("Saving at box ", box_cnt)
     save(output_json_path, batch_vp_detector.output_list)
+    print(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}:", end=" ")
     print("Finished session: {} with {} boxes".format(session, total_box_count))
 
 
@@ -93,6 +101,11 @@ def detect():
     data_path = args.path
     sessions = os.listdir(os.path.join(data_path, 'dataset'))
     for session in sessions:
+
+        # skipping the new folder that does not have detections.json
+        if "2026_outputs" in session:
+            continue
+
         detect_session(model, model_dir_name, data_path, session, args, scales)
 
 if __name__ == '__main__':

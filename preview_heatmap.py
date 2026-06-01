@@ -6,8 +6,8 @@ import numpy as np
 import tensorflow_hub as hub
 from eval.extract_vp_utils import filter_boxes_bcp
 
-from models.hourglass import load_model, parse_command_line
-from utils.diamond_space import get_focal, process_heatmaps
+from models.hourglass import load_model, parse_command_line, using_tiling
+from utils.diamond_space import get_focal, process_heatmaps, untile_heatmaps
 from utils.video import get_cap
 from pathlib import Path
 from typing import Tuple
@@ -57,6 +57,8 @@ def preview():
 
     prev_edge = None
 
+    frame_id = 0
+
     ret = True
     while ret:
         # for _ in range(10):
@@ -79,12 +81,19 @@ def preview():
         showing_frame = copy.deepcopy(frame)
         showing_frame = cv2.resize(showing_frame, args.resize_imshow_frame_into)
 
-        showing_frame = write_helper_on_image(showing_frame)
+        # showing_frame = write_helper_on_image(showing_frame)
 
-        cv2.imshow("Frame", showing_frame)
-        cv2.waitKey(30)
+        # cv2.imshow("Frame", showing_frame)
+        # cv2.waitKey(30)
 
-        for box in boxes:
+        frame_id = getattr(cap, "i", 0)
+        att_num = "4_bcs"
+
+        Path(f"preview_heatmap_visualise/att{att_num}/first_part/").mkdir(parents=True, exist_ok=True)
+        ok = cv2.imwrite(f"preview_heatmap_visualise/att{att_num}/first_part/showing_frame_{frame_id}.png", showing_frame)
+        assert ok
+
+        for box_id, box in enumerate(boxes):
             x_min = int(1920 * box[1])  # todo: remove magic numbers
             y_min = int(1080 * box[0])
             x_max = int(1920 * box[3] + 1)
@@ -141,9 +150,16 @@ def preview():
                 black_image = np.zeros((frame_scale.shape[0], args.input_size, 3), np.uint8)
                 black_image[0:args.input_size, 0:args.input_size, :] = car
                 frame_scale = cv2.hconcat((frame_scale, black_image))
-                frame_scale = write_helper_on_image(frame_scale)
-                cv2.imshow("Frame", frame_scale)
-                if cv2.waitKey(0) == ord('s'):
+                # frame_scale = write_helper_on_image(frame_scale)
+                # cv2.imshow("Frame", frame_scale)
+                # if cv2.waitKey(0) == ord('s'):
+
+                Path(f"preview_heatmap_visualise/att{att_num}/second_part/").mkdir(parents=True, exist_ok=True)
+                ok = cv2.imwrite(f"preview_heatmap_visualise/att{att_num}/second_part/frame_scale_frame_{frame_id}_box_{box_id}.png",
+                                 frame_scale)
+                assert ok
+
+                if True:
                     # save heatmaps
 
                     print("VP1 var idx: ", vp1_var_idx)
@@ -156,21 +172,30 @@ def preview():
                     print("ymin: ", y_min)
                     print("ymax: ", x_max)
 
-                    Path("datasets/vis/").mkdir(parents=True, exist_ok=True)
-                    ok = cv2.imwrite("datasets/vis/frame_preview.png", frame)
+                    Path(f"preview_heatmap_visualise/att{att_num}/third_part/").mkdir(parents=True, exist_ok=True)
+
+                    ok = cv2.imwrite(f"preview_heatmap_visualise/att{att_num}/third_part/frame_{frame_id}_box_{box_id}.png", frame)
                     assert ok
-                    ok = cv2.imwrite("datasets/vis/car_preview.png", car)
+                    ok = cv2.imwrite(f"preview_heatmap_visualise/att{att_num}/third_part/car_{frame_id}_box_{box_id}.png", car)
                     assert ok
 
                     heatmap_pred[-1][heatmap_pred[-1] < 0] = 0
 
+                    if using_tiling(args.modification):
+                        heatmaps_to_save = heatmap_pred[-1]
+                        heatmaps_to_save = untile_heatmaps(heatmaps_to_save)
+                    else:
+                        heatmaps_to_save = heatmap_pred[-1]
+
+                    Path(f"preview_heatmap_visualise/att{att_num}/fourth_part/").mkdir(parents=True, exist_ok=True)
+
                     for vp_idx in range(2):
                         for scale_idx, scale in enumerate(scales):
                             idx = len(scales) * vp_idx + scale_idx
-                            cv2.imwrite("datasets/vis/heatmap_preview_vp{}_s{}.png".format(vp_idx + 1, scale),
+                            cv2.imwrite(f"preview_heatmap_visualise/att{att_num}/fourth_part/frame_{frame_id}_box_{box_id}_heatmap_vp{vp_idx + 1}_s{scale}.png",
                                         cv2.applyColorMap(
-                                            np.uint8(255 * heatmap_pred[-1][0, :, :, idx] / np.max(
-                                                heatmap_pred[-1][0, :, :, idx])),
+                                            np.uint8(255 * heatmaps_to_save[0, :, :, idx] / np.max(
+                                                heatmaps_to_save[0, :, :, idx])),
                                             cv2.COLORMAP_PARULA))
 
 

@@ -3,6 +3,16 @@ import json
 import os
 import pickle
 
+import matplotlib
+matplotlib.use('Agg')
+
+from flask import Flask, Response
+import threading
+
+app = Flask(__name__)
+latest_frame = None
+
+
 import numpy as np
 import cv2
 from eval.eval_calib import get_projector, eval_pure_calibration
@@ -56,8 +66,10 @@ def show_vps(vp1s, vp2s, session):
         except Exception:
             ...
         # cv2.waitKey(1)
-    cv2.waitKey(0)
-
+    # cv2.waitKey(0)
+    os.makedirs('/home/m/michalikova36/tmp/extract_calib', exist_ok=True)
+    cv2.imwrite(f'/home/m/michalikova36/tmp/extract_calib/debug_vps_{session}.png', canvas)
+    print(f"Saved debug_vps_{session}.png")
 
 def filter_vp(vp_data):
     filtered_vp_data = []
@@ -111,8 +123,12 @@ def get_focal_kernel_voting(fs, scores, width=0.01, weight_exponent=1.5):
 
     accum_space = np.sum(scores[:, np.newaxis]**weight_exponent * np.exp(-np.abs(fs[:, np.newaxis] - accum_space_x[np.newaxis, :]) / (width * n)), axis=0)
 
-    # plt.plot(accum_space_x, accum_space)
-    # plt.show()
+    plt.plot(accum_space_x, accum_space)
+    # plt.show(
+    os.makedirs('/home/m/michalikova36/tmp/extract_calib', exist_ok=True)
+    plt.savefig('/home/m/michalikova36/tmp/extract_calib/debug_focal.png')
+    plt.close()
+    print("Saved debug_focal.png")
 
     return accum_space_x[np.argmax(accum_space)]
 
@@ -146,11 +162,15 @@ def project_to_horizon(vp1, vp2, m, k):
 
 def export_calib_session(session, args, json_name, bcp=False):
     if bcp:
-        vp_json_path = os.path.join(args.bcp_path, 'data', session, '{}.json'.format(json_name))
-        calib_json_path = os.path.join(args.bcp_path, 'results', session, 'system_{}_{}c.json'.format(json_name, args.conf))
+        # modifying the path to match the 2026 outputs
+        vp_json_path = os.path.join(args.bcp_path, 'data', '2026_outputs', session, '{}.json'.format(json_name))
+        calib_json_path = os.path.join(args.bcp_path, 'results', '2026_outputs', session, 'system_{}_{}c.json'.format(json_name, args.conf))
+        os.makedirs(os.path.join(args.bcp_path, 'results', '2026_outputs', session), exist_ok=True)
     else:
-        vp_json_path = os.path.join(args.bcs_path, 'dataset', session, '{}.json'.format(json_name))
-        calib_json_path = os.path.join(args.bcs_path, 'results', session, 'system_{}_{}c.json'.format(json_name, args.conf))
+        # modifying the path to match the 2026 outputs
+        vp_json_path = os.path.join(args.bcs_path, 'dataset', '2026_outputs', session, '{}.json'.format(json_name))
+        calib_json_path = os.path.join(args.bcs_path, 'results', '2026_outputs', session, 'system_{}_{}c.json'.format(json_name, args.conf))
+        os.makedirs(os.path.join(args.bcs_path, 'results', '2026_outputs', session), exist_ok=True)
 
     if session == 'S09' or session == 'S10' or session == 'S11':
         pp = np.array([640.5, 400.5])
@@ -174,8 +194,8 @@ def export_calib_session(session, args, json_name, bcp=False):
         _, counts_vp1 = np.unique(best_scales_vp1, return_counts=True)
         _, counts_vp2 = np.unique(best_scales_vp2, return_counts=True)
 
-        # print("VP1 best scale counts: ", counts_vp1)
-        # print("VP2 best scale counts: ", counts_vp2)
+        print("VP1 best scale counts: ", counts_vp1)
+        print("VP2 best scale counts: ", counts_vp2)
     else:
         counts_vp1 = np.zeros(4)
         counts_vp2 = np.zeros(4)
@@ -250,13 +270,15 @@ def export_calib():
         # total_counts_vp1 = np.zeros(4)
         # total_counts_vp2 = np.zeros(4)
 
-        sessions = sorted(os.listdir(os.path.join(args.bcs_path, 'dataset')))[12:]
+        # modifying the path to match the 2026 outputs
+        sessions = sorted(os.listdir(os.path.join(args.bcs_path, 'dataset', '2026_outputs')))[12:]
         for session in sessions:
             cnt_vp1, cnt_vp2 = export_calib_session(session, args, json_name)
             # total_counts_vp1 += cnt_vp1
             # total_counts_vp2 += cnt_vp2
 
-        sessions = sorted(os.listdir(os.path.join(args.bcp_path, 'data')))
+        # modifying the path to match the 2026 outputs
+        sessions = sorted(os.listdir(os.path.join(args.bcp_path, 'data', '2026_outputs')))
         for session in sessions:
             cnt_vp1, cnt_vp2 = export_calib_session(session, args, json_name, bcp=True)
             # total_counts_vp1 += cnt_vp1

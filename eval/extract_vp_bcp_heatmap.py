@@ -17,6 +17,7 @@ from utils.gpu import set_gpus
 def detect_session(detector, model_dir_name, data_path, session, args, scales):
     batch_vp_detector = BatchVPDetectorHeatmap(detector, args, scales)
 
+    print(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}:", end=" ")
     print("Starting vp detection for ", session)
 
     if args.mask:
@@ -31,7 +32,10 @@ def detect_session(detector, model_dir_name, data_path, session, args, scales):
 
     detection_data = detection_data[:args.max_frames]
 
-    output_json_path = os.path.join(data_path, 'data', session, output_json_name)
+    # changed the path to the output files to separate current work from previous work
+    output_dir = os.path.join(data_path, 'data', '2026_outputs', session)
+    os.makedirs(output_dir, exist_ok=True)
+    output_json_path = os.path.join(output_dir, output_json_name)
 
     total_box_count = sum([len(item['boxes']) for item in detection_data])
     print("Loaded {} bounding boxes for {} frames".format(total_box_count, len(detection_data)))
@@ -80,6 +84,7 @@ def detect_session(detector, model_dir_name, data_path, session, args, scales):
     batch_vp_detector.finalize()
     print("Saving at box ", box_cnt)
     save(output_json_path, batch_vp_detector.output_list)
+    print(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}:", end=" ")
     print("Finished session: {} with {} boxes".format(session, total_box_count))
 
 
@@ -93,6 +98,11 @@ def detect():
     data_path = args.path
     sessions = sorted(os.listdir(os.path.join(data_path, 'data')))
     for session in sessions:
+
+        # skipping the new folder that does not have detections.json
+        if "2026_outputs" in session:
+            continue
+
         detect_session(model, model_dir_name, data_path, session, args, scales)
 
 

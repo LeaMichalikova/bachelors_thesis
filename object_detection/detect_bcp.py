@@ -25,6 +25,7 @@ def parse_args():
 
 
 def detect_session(detector, path, session, conf=0.1, dump_every=0, max_frames=5000, mask=False, debug=False):
+    print(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}:", end=" ")
     print("Starting object detection for ", session)
     if mask:
         json_path = os.path.join(path, 'data', session, 'detections_mask.json')

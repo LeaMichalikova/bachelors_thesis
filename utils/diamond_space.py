@@ -1,5 +1,5 @@
 import numpy as np
-
+from models.hourglass import parse_command_line, using_tiling
 
 def get_focal(vp1, vp2, pp):
     return np.sqrt(-np.dot(vp1[0:2]-pp[0:2], vp2[0:2]-pp[0:2]))
@@ -79,7 +79,26 @@ def process_heatmap_old(heatmap, scale):
 
     return vp_max, mean_dist
 
+def untile_heatmaps(heatmaps):
+    h = heatmaps.shape[1] // 2
+    w = heatmaps.shape[2] // 2
+    untiled = np.empty([heatmaps.shape[0], h, w, 8], dtype=heatmaps.dtype)
+
+    untiled[:, :, :, 0] = heatmaps[:, 0:h, 0:w, 0]
+    untiled[:, :, :, 1] = heatmaps[:, 0:h, w:2*w, 0]
+    untiled[:, :, :, 2] = heatmaps[:, h:2*h, 0:w, 0]
+    untiled[:, :, :, 3] = heatmaps[:, h:2*h, w:2*w, 0]
+    untiled[:, :, :, 4] = heatmaps[:, 0:h, 0:w, 1]
+    untiled[:, :, :, 5] = heatmaps[:, 0:h, w:2*w, 1]
+    untiled[:, :, :, 6] = heatmaps[:, h:2*h, 0:w, 1]
+    untiled[:, :, :, 7] = heatmaps[:, h:2*h, w:2*w, 1]
+
+    return untiled
+
 def process_heatmaps(heatmaps, scales):
+    args = parse_command_line()
+    if using_tiling(args.modification):
+        heatmaps = untile_heatmaps(heatmaps)
 
     vps = np.empty([heatmaps.shape[0], len(scales), 4])
     dists = np.empty([heatmaps.shape[0], len(scales), 2])

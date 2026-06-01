@@ -346,7 +346,8 @@ class BatchVPDetectorBase():
 class BatchVPDetectorReg(BatchVPDetectorBase):
     def predict(self):
         cars = [item['car_img'] for item in self.q]
-        preds = self.model.predict(np.array(cars) / 255)
+        # verbose=0 stops certain prints from being printed, speeding up the process of vp extraction
+        preds = self.model.predict(np.array(cars) / 255, verbose=0)
         if isinstance(preds, list):
             preds = preds[-1]
         for pred, item in zip(preds, self.q):
@@ -384,7 +385,8 @@ class BatchVPDetectorHeatmap(BatchVPDetectorBase):
 
     def predict(self):
         cars = [item['car_img'] for item in self.q]
-        preds = self.model.predict(np.array(cars) / 255)
+        # verbose=0 stops certain prints from being printed, speeding up the process of vp extraction
+        preds = self.model.predict(np.array(cars) / 255, verbose=0)
         pred_vps, pred_vars = process_heatmaps(preds[-1], self.scales)
         for pred_vp, pred_var, item in zip(pred_vps, pred_vars, self.q):
             vp1_var = pred_var[:, 0]

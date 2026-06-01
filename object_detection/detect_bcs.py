@@ -30,6 +30,7 @@ def parse_args():
 
 
 def detect_session(detector, path, session, max_frames=0, skip=10, conf=0.1, dump_every=0, mask=False, debug=False):
+    print(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}:", end=" ")
     print("Starting object detection for ", session)
 
     cap = cv2.VideoCapture(os.path.join(path, 'dataset', session, 'video.avi'))

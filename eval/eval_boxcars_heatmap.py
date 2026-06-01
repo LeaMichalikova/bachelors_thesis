@@ -24,7 +24,8 @@ def eval():
     pred_dists_vars = []
 
     for X, gt_vp in test_dataset:
-        pred = model.predict(X)
+        # verbose=0 stops certain prints from being printed, speeding up the process of vp extraction
+        pred = model.predict(X, verbose=0)
         pred_vps, pred_dists = process_heatmaps(pred[-1], scales)
 
         gt_vp_list.append(gt_vp[0])
